@@ -21,6 +21,7 @@ def main():
         if not data: break
         print data
 
+    print '[x] Disconnected'
     client_socket.close()
 
 if __name__ == '__main__':
