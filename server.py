@@ -8,17 +8,13 @@ HOST = 'localhost'
 PORT = 30000
 ADDRESS = (HOST, PORT)
 
-
-# ---------- NETWORK ----------
-
 def handle_connection(client_socket, address):
     print '[v] Started communication with :', address
 
     while True:
         data = client_socket.recv(BUFFER_SIZE)
-        if not data: break
-        msg = 'echoed:... ' + data
-        client_socket.send(msg)
+        print '\t[*] Client wrote :', data
+        client_socket.send(data)
     
     print '[x] Ended communication with :' , address
     client_socket.close()
@@ -35,4 +31,4 @@ def main():
         thread.start_new_thread(handle_connection, (client_socket, address))
 
 if __name__ == '__main__':
-    print help()
+    main()

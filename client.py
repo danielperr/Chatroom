@@ -8,7 +8,8 @@ ADDRESS = (HOST, PORT)
 
 
 def main():
-    print '[*] Trying to connect to %s:%s . . .' % ADDRESS
+
+    print '[*] Trying to connect to %s : %s . . .' % ADDRESS
     client_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
     client_socket.connect(ADDRESS)
     print '[v] Connection successful !'
