@@ -1,6 +1,5 @@
 import socket as s 
-import threading
-import thread
+import threading, thread
 
 BUFFER_SIZE = 1024
 
@@ -8,15 +7,43 @@ HOST = 'localhost'
 PORT = 30000
 ADDRESS = (HOST, PORT)
 
+users = {
+    # address: (client_socket, username)
+}
+
+def send_to_address(address, msg):
+    users[address][0].send(msg)
+
+
+def broadcast(msg):
+    for address in users.keys():
+        send_to_address(address, msg)
+
+
 def handle_connection(client_socket, address):
-    print '[v] Started communication with :', address
+    global sockets, users
+
+    # Check username
+    username = client_socket.recv(BUFFER_SIZE)
+    if username in [users[addr][1] for addr in users.keys()]:
+        client_socket.close()
+        return
+    
+    # "Handshake"
+    users[address] = client_socket, username
+    client_socket.send('ok')
+    print '<Server> : %s has joined the chat' % username
 
     while True:
-        data = client_socket.recv(BUFFER_SIZE)
-        print '\t[*] Client wrote :', data
-        client_socket.send(data)
+        try:
+            data = client_socket.recv(BUFFER_SIZE)
+        except: break
+        if not data: break
+        print '\t[%s] > %s' % (users[address][1], data)
+        broadcast(msg)
     
-    print '[x] Ended communication with :' , address
+    print '<Server> : %s has left the chat' % username
+    del users[address]
     client_socket.close()
 
 
