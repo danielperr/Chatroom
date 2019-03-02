@@ -130,15 +130,15 @@ def handle_connection(server_socket, client_socket, address):
             data = client_socket.recv(BUFFER_SIZE).strip()
         except: break
         if not data: break
-        print '\t[%s] > %s' % (users[address][1], data)
+        print '[%s] > %s' % (users[address][1], data)
 
         # Check command if exists - command starts with '/', args are space-seperated
         if data[0] == '/':
 
-            if data.startswith('/time'):
+            if data.startswith('/time'): # returns server date and time
                 client_socket.send('[*] Server time : ' + datetime.now().strftime(r'%d/%m/%Y %H:%M:%S'))
 
-            elif data.startswith('/msg'):
+            elif data.startswith('/msg'): # sends a private message to the given username
                 try:
                     msg = '[*] %s sent you : %s' % (username, ' '.join(data.split()[2:]))
                     send_to_username(data.split()[1], msg)
@@ -149,10 +149,10 @@ def handle_connection(server_socket, client_socket, address):
                 else:
                     client_socket.send('[*] You sent %s : %s' % (data.split()[1], ' '.join(data.split()[2:])))
             
-            elif data.startswith('/rolladice'):
+            elif data.startswith('/rolladice'): # rolls a dice and announces it to everyone
                 broadcast('[*] %s has rolled a dice and it\'s a %s!' % (username, random.randint(1, 6)))
             
-            elif data.startswith('/shutdown'):
+            elif data.startswith('/shutdown'): # shuts the server down if the password is correct
                 if len(data.split()) == 1:
                     client_socket.send('[x] ERROR: please provide a password too')
                 
@@ -176,11 +176,10 @@ def handle_connection(server_socket, client_socket, address):
                 client_socket.send('[x] Unknown command. Available commands: ' + HELP)
             
         else:
+            # If not a command, broadcasts the data as a chat message
             broadcast('[%s] [%s] > %s' % (datetime.now().strftime("%H:%M:%S"), users[address][1], data))
-    
 
-
-
+    # Outside loop
     print '[*] %s has left the chat' % username
     broadcast('[*] %s has left the chat' % username)
     time.sleep(0.01)
