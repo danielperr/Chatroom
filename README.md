@@ -3,8 +3,6 @@ Targil 6 sockets - Chat Room
 
 Author: Daniel Peretz
 
-Eran Bineth's cyber class
-
 ## Commands
 * /time - Returns server time
 * /rolladice - Rolls a dice and announces the result to everyone
