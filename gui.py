@@ -11,6 +11,8 @@ PADDING = 12
 MIN_WIDTH = 500
 MIN_HEIGHT = 250
 
+ONLINE_LABEL_DEFAULT = 'Online users: '
+
 # NETWORK
 PORT = 30000
 BUFFER_SIZE = 1024
@@ -78,13 +80,14 @@ class App:
 
     def gui_setup_actions(self):
         '''
-        Set up actions area
+        Set up actions area (including online users list)
         '''
 
         self.side_frame = Frame(self.bottom_pwin, padx=PADDING, pady=PADDING)
         self.bottom_pwin.add(self.side_frame)
 
-        self.online_label = Label(self.side_frame, text='Online users: 0')
+        self.online_stringvar = StringVar(self.side_frame, value=(ONLINE_LABEL_DEFAULT + '0'))
+        self.online_label = Label(self.side_frame, textvariable=self.online_stringvar)
         self.online_label.pack()
 
         self.online_list = Listbox(self.side_frame)
@@ -118,6 +121,8 @@ class App:
         self.submit_button = Button(self.submit_frame, text='Send')
         self.submit_button.pack(side=RIGHT)
 
+        self.lock_chat()
+
     def gui_bind_events(self):
         '''
         Binds each event to its callback function
@@ -143,12 +148,39 @@ class App:
 
     def unlock_login(self):
         '''
-        Unocks (enables) the login entries, as well as the button.
+        Unlocks (enables) the login entries, as well as the button.
         '''
         self.login_submit_button['state'] = NORMAL
         self.login_host_entry['state'] = NORMAL
         self.login_username_entry['state'] = NORMAL
         self.locked_login = False
+
+    def lock_chat(self):
+        '''
+        Locks (disables) the chat area.
+        '''
+        self.submit_entry['state'] = DISABLED
+        self.submit_button['state'] = DISABLED
+        self.locked_chat = True
+
+    def unlock_chat(self):
+        '''
+        Unlocks (enables) the chat area.
+        '''
+        self.submit_entry['state'] = NORMAL
+        self.submit_button['state'] = NORMAL
+        self.locked_chat = False
+
+    def update_online_users(self, usernames):
+        '''
+        Updates the usernames in the 'online users' list.
+        '''
+        self.online_list.delete(0, END)
+
+        for username in usernames:
+            self.online_list.insert(self.online_list.size()+1, username)
+        
+        self.online_stringvar.set(ONLINE_LABEL_DEFAULT + str(len(usernames)))
 
     def display_message(self, msg):
         '''
@@ -181,7 +213,7 @@ class App:
         and connecting via sockets
         '''
 
-        if locked_login:
+        if self.locked_login:
             return
 
         # Getting data from the entries
@@ -191,9 +223,13 @@ class App:
         address = (host, port)
 
         # Validating input
-        if host == '' or username == '':
+        if username == '':
             self.display_message('[x] ERROR: please fill all entries to log in')
             return
+        
+        # Host defaults to localhost
+        if host == '':
+            host = 'localhost'
 
         self.lock_login()
 
@@ -228,6 +264,7 @@ class App:
             return
         
         # Starting a listening thread
+        self.unlock_chat()
         thread.start_new_thread(self.socket_listen, ())
 
     def socket_listen(self):
@@ -235,12 +272,32 @@ class App:
         Activates listening forever
         '''
         while True:
-            data = self.client_socket.recv(BUFFER_SIZE)
+
+            # Recieve data from the server
+            try:
+                data = self.client_socket.recv(BUFFER_SIZE)
+            except: break
             if not data: break
-            self.display_message(data)
+            
+            # Handle commands from the server if given
+            if data.startswith('/'):
+
+                # Update online users in the online users list
+                if data.startswith('/online'): # usernames are space-seperated
+                    self.update_online_users(data.split()[1:])
+                
+                # Turn off the connection
+                elif data.startswith('/off'):
+                    self.off()
+            
+            else:
+                try:
+                    self.display_message(data)
+                except: pass
         
         self.display_message('[x] The connection with the server has been terminated.')
         self.unlock_login()
+        self.lock_chat()
 
     def chat_sendmsg(self, event):
         '''
@@ -248,12 +305,19 @@ class App:
         or when the user hits 'return' in the chat entry
         '''
 
+        # Check if locked
+        if self.locked_chat:
+            return
+
         msg = self.submit_entry.get()
         if not msg: return
 
         self.submit_entry.delete(0, END)
 
-        self.client_socket.send(msg)
+        try:
+            self.client_socket.send(msg)
+        except s.error, e:
+            print '[x] ERROR: ' + str(e)
 
         # Scroll to the bottom
         self.chat_list.yview_moveto(1.0)
