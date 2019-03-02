@@ -74,6 +74,8 @@ class App:
         self.login_submit_button = Button(self.login_frame, text='Connect')
         self.login_submit_button.pack(side=LEFT, fill=X)
 
+        self.locked_login = False
+
     def gui_setup_actions(self):
         '''
         Set up actions area
@@ -137,6 +139,7 @@ class App:
         self.login_submit_button['state'] = DISABLED
         self.login_host_entry['state'] = DISABLED
         self.login_username_entry['state'] = DISABLED
+        self.locked_login = True
 
     def unlock_login(self):
         '''
@@ -145,11 +148,17 @@ class App:
         self.login_submit_button['state'] = NORMAL
         self.login_host_entry['state'] = NORMAL
         self.login_username_entry['state'] = NORMAL
+        self.locked_login = False
 
     def display_message(self, msg):
         '''
         Displays the given message on the chat ListBox
         '''
+
+        # Check whether the scrollbar position is overridden. (not at the bottom)
+        # If no, it will scroll automatically to the bottom to see the chat
+        # If yes, it will not scroll automatically (to not annoy the user)
+        autoscroll = self.scrollbar.get()[1] >= 0.95
 
         self.chat_list.insert(self.chat_list.size()+1, msg)
 
@@ -162,11 +171,18 @@ class App:
             col = 'green4'
         self.chat_list.itemconfig(self.chat_list.size()-1, {'fg': col})
 
+        # Scroll to the bottom if already at bottom
+        if autoscroll:
+            self.chat_list.yview_moveto(1.0)
+
     def login(self, event):
         '''
         Performs login actions, including verifying the username
         and connecting via sockets
         '''
+
+        if locked_login:
+            return
 
         # Getting data from the entries
         host = self.login_host_entry.get()
@@ -227,9 +243,19 @@ class App:
         self.unlock_login()
 
     def chat_sendmsg(self, event):
+        '''
+        Activates when the 'send' button is pressed,
+        or when the user hits 'return' in the chat entry
+        '''
+
         msg = self.submit_entry.get()
         if not msg: return
+
         self.submit_entry.delete(0, END)
+
         self.client_socket.send(msg)
+
+        # Scroll to the bottom
+        self.chat_list.yview_moveto(1.0)
 
 app = App()
