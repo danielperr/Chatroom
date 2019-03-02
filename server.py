@@ -1,11 +1,12 @@
 import socket as s 
-import threading, thread, re, time, scapy.all
+import threading, thread, re, time, scapy.all, random
 from datetime import datetime
 
 BUFFER_SIZE = 1024
 HOST = 'localhost'
 USERNAME_WHITELIST = r'^[a-zA-Z\._-]*$'
 PASSWORD = 'sumsum_hipatah'
+HELP = '/time, /msg, /rolladice, /shutdown. More info in README.txt'
 
 
 port = 0
@@ -135,7 +136,7 @@ def handle_connection(server_socket, client_socket, address):
         if data[0] == '/':
 
             if data.startswith('/time'):
-                client_socket.send('[*] Server time : ', datetime.now())
+                client_socket.send('[*] Server time : ' + datetime.now().strftime(r'%d/%m/%Y %H:%M:%S'))
 
             elif data.startswith('/msg'):
                 try:
@@ -147,6 +148,9 @@ def handle_connection(server_socket, client_socket, address):
                     client_socket.send('[x] ERROR: please specify username and the message.')
                 else:
                     client_socket.send('[*] You sent %s : %s' % (data.split()[1], ' '.join(data.split()[2:])))
+            
+            elif data.startswith('/rolladice'):
+                broadcast('[*] %s has rolled a dice and it\'s a %s!' % (username, random.randint(1, 6)))
             
             elif data.startswith('/shutdown'):
                 if len(data.split()) == 1:
@@ -168,8 +172,11 @@ def handle_connection(server_socket, client_socket, address):
                 else:
                     client_socket.send('[x] Wrong password')
             
+            else:
+                client_socket.send('[x] Unknown command. Available commands: ' + HELP)
+            
         else:
-            broadcast('[%s] > %s' % (users[address][1], data))
+            broadcast('[%s] [%s] > %s' % (datetime.now().strftime("%H:%M:%S"), users[address][1], data))
     
 
 

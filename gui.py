@@ -350,7 +350,7 @@ class App:
     def logout(self):
         '''
         When logging out or when the current server shuts down.
-        Performs log-out actions and reset to initial state
+        Performs log-out actions and resets to initial state
         '''
         self.chat_list.delete(0, END)
         self.update_online_users([])
