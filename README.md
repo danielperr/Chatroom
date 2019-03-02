@@ -1,6 +1,8 @@
 # targil6
 Targil 6 sockets - Chat Room
+
 Author: Daniel Peretz
+
 Eran Bineth's cyber class
 
 ## Commands
