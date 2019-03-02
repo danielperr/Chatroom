@@ -1,18 +1,55 @@
 import socket as s 
-import threading, thread, re, time
+import threading, thread, re, time, scapy.all
 from datetime import datetime
 
 BUFFER_SIZE = 1024
-
 HOST = 'localhost'
-PORT = 30000
-ADDRESS = (HOST, PORT)
-
 USERNAME_WHITELIST = r'^[a-zA-Z\._-]*$'
+PASSWORD = 'sumsum_hipatah'
+
+
+port = 0
 
 users = {
     # address: (client_socket, username)
 }
+
+is_shutting_down = False # used for closing all threads
+
+def find_free_port():
+    '''
+    Finds a free port for the server to use
+    and returns it (int)
+    '''
+    sock = s.socket(s.AF_INET, s.SOCK_STREAM)
+    sock.bind(('', 0))
+    sock.listen(1)
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+def wait_for_port_request():
+    while True:
+        if is_shutting_down:
+            break
+
+        requests = scapy.all.sniff(
+            filter = 'icmp',
+            count = 1,
+            lfilter = lambda p: 'chat-request-port' in str(p), # searching for raw data in packet
+            timeout = 1
+        )
+
+        if len(requests) == 0:
+            continue
+        
+        packet = requests[0]
+        scapy.all.send(
+            scapy.all.IP(
+                dst = packet['IP'].src,
+                src = packet['IP'].dst
+            ) / scapy.all.ICMP() / ('chat-reply-' + str(port))
+        )
 
 def send_to_username(username, msg):
     '''
@@ -49,9 +86,15 @@ def broadcast(msg):
     for address in users.keys():
         send_to_address(address, msg)
 
+def close_all_client_sockets():
+    '''
+    Closes all client sockets in 'users' dictionary
+    '''
+    for addr in users.keys():
+        users[addr][0].close()
 
-def handle_connection(client_socket, address):
-    global sockets, users
+def handle_connection(server_socket, client_socket, address):
+    global sockets, users, is_shutting_down
 
     # Username validation with the client
     username = client_socket.recv(BUFFER_SIZE)
@@ -79,6 +122,9 @@ def handle_connection(client_socket, address):
     # Message handling
     while True:
 
+        if is_shutting_down:
+            break
+
         try:
             data = client_socket.recv(BUFFER_SIZE).strip()
         except: break
@@ -93,13 +139,35 @@ def handle_connection(client_socket, address):
 
             elif data.startswith('/msg'):
                 try:
-                    msg = '[*] %s sent you : %s' % (username, data.split()[2])
+                    msg = '[*] %s sent you : %s' % (username, ' '.join(data.split()[2:]))
                     send_to_username(data.split()[1], msg)
                 except ValueError, e:
                     client_socket.send('[x] ERROR: ' + str(e))
+                except IndexError:
+                    client_socket.send('[x] ERROR: please specify username and the message.')
                 else:
-                    client_socket.send('[*] You sent %s : %s' % (data.split()[1], data.split()[2]))
+                    client_socket.send('[*] You sent %s : %s' % (data.split()[1], ' '.join(data.split()[2:])))
+            
+            elif data.startswith('/shutdown'):
+                if len(data.split()) == 1:
+                    client_socket.send('[x] ERROR: please provide a password too')
+                
+                elif ' '.join(data.split()[1:]) == PASSWORD:
+                    client_socket.send('[*] Shutting down . . .')
+                    time.sleep(0.01)
+                    broadcast('/off')
+                    server_socket.close()
+                    is_shutting_down = True
 
+                    # Opening a temporary socket to free the .accept method in main()
+                    closing_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
+                    closing_socket.connect((HOST, port))
+                    closing_socket.close()
+                    break
+                
+                else:
+                    client_socket.send('[x] Wrong password')
+            
         else:
             broadcast('[%s] > %s' % (users[address][1], data))
     
@@ -116,16 +184,26 @@ def handle_connection(client_socket, address):
     
     client_socket.close()
 
-
 def main():
+    global port
+
+    port = find_free_port()
     server_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
-    server_socket.bind(ADDRESS)
+    server_socket.bind((HOST, port))
     server_socket.listen(2)
-    print '[*] Listening on port %s . . .' % PORT
+    print '[*] Listening on port %s . . .' % port
+
+    thread.start_new_thread(wait_for_port_request, ())
 
     while True:
         client_socket, address = server_socket.accept()
-        thread.start_new_thread(handle_connection, (client_socket, address))
+        
+        if is_shutting_down:
+            break
+        
+        thread.start_new_thread(handle_connection, (server_socket, client_socket, address))
+    
+    quit()
 
 if __name__ == '__main__':
     main()

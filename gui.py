@@ -5,6 +5,7 @@ except ImportError:
 
 import socket as s
 import time, threading, thread, re
+import scapy.all
 
 # GUI
 PADDING = 12
@@ -16,6 +17,7 @@ ONLINE_LABEL_DEFAULT = 'Online users: '
 # NETWORK
 PORT = 30000
 BUFFER_SIZE = 1024
+TIMEOUT = 1 # timeout for waiting for the port reply (in seconds)
 
 # Using a class instead of millions of global variables
 class App:
@@ -209,19 +211,17 @@ class App:
 
     def login(self, event):
         '''
-        Performs login actions, including verifying the username
-        and connecting via sockets
+        Performs login actions, including requesting port,
+        verifying the username and connecting via sockets
         '''
 
         if self.locked_login:
             return
-
+        
         # Getting data from the entries
         host = self.login_host_entry.get()
-        port = PORT
         username = self.login_username_entry.get()
-        address = (host, port)
-
+        
         # Validating input
         if username == '':
             self.display_message('[x] ERROR: please fill all entries to log in')
@@ -232,6 +232,30 @@ class App:
             host = 'localhost'
 
         self.lock_login()
+
+
+        # Getting the port via ICMP message
+        try:
+            scapy.all.send( scapy.all.IP(dst=host) / scapy.all.ICMP() / 'chat-request-port' )
+            reply = scapy.all.sniff(
+                filter = 'icmp',
+                count = 1,
+                lfilter = lambda p: 'chat-reply' in str(p), # we filter only packets containing this raw message
+                timeout = TIMEOUT
+            )
+        except:
+            self.display_message('[x] ERROR: host unknown')
+            self.unlock_login()
+            return
+        
+        if len(reply) == 0:
+            self.display_message('[x] ERROR: server is busy or unreachable')
+            self.unlock_login()
+            return
+        
+        port = int(reply[0].load.lstrip('chat-reply-'))
+        address = (host, port)
+
 
         print '[*] Login requested\n--> Host: %s\n--> Port: %s\n--> Username: %s' % (host, port, username)
         
@@ -251,7 +275,7 @@ class App:
             self.unlock_login()
             return
         except Exception, e:
-            self.display_message('[x] ERROR: ' + e)
+            self.display_message('[x] ERROR: ' + str(e))
 
         # Username validation with the server
         self.client_socket.send(username)
@@ -288,7 +312,8 @@ class App:
                 
                 # Turn off the connection
                 elif data.startswith('/off'):
-                    self.off()
+                    self.logout()
+                    return
             
             else:
                 try:
@@ -321,5 +346,17 @@ class App:
 
         # Scroll to the bottom
         self.chat_list.yview_moveto(1.0)
+
+    def logout(self):
+        '''
+        When logging out or when the current server shuts down.
+        Performs log-out actions and reset to initial state
+        '''
+        self.chat_list.delete(0, END)
+        self.update_online_users([])
+        self.display_message('[x] Logged out.')
+        self.lock_chat()
+        self.unlock_login()
+
 
 app = App()
