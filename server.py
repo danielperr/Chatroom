@@ -1,5 +1,5 @@
 import socket as s 
-import threading, thread
+import threading, thread, re
 from datetime import datetime
 
 BUFFER_SIZE = 1024
@@ -29,7 +29,11 @@ def handle_connection(client_socket, address):
     # Username validation with the client
     username = client_socket.recv(BUFFER_SIZE)
     if username in [users[addr][1] for addr in users.keys()]:
-        client_socket.send()
+        client_socket.send('[x] Username already taken!')
+        client_socket.close()
+        return
+    elif not re.match(USERNAME_WHITELIST, username):
+        client_socket.send('[x] Username not valid - use characters, dot, underscore and dash')
         client_socket.close()
         return
     
