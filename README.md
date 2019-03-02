@@ -1,2 +1,8 @@
 # targil6
-Eran targil 6 sockets
+Targil 6 sockets - Chat Room
+
+## Commands
+* /time - Returns server time
+* /rolladice - Rolls a dice and announces the result to everyone
+* /msg <username> <message ...> - Sends a private message to a user
+* /shutdown <password> - Shuts down the server (if the password is correct)
