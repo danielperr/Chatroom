@@ -10,3 +10,6 @@ Author: Daniel Peretz
 * /msg <username> <message ...> - Sends a private message to a user
 * /logout - Logs you out as the user
 * /shutdown <password> - Shuts down the server (if the password is correct)
+
+## Troubleshooting
+* If you get the message "host unknown" and you're sure that the host address is correct, then make sure scapy and winpcap are installed properly.

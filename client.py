@@ -57,7 +57,7 @@ class App:
 
         self.gui_bind_events()
 
-        self.display_message('Please enter the host address and your wanted username.')
+        self.display_message('Please enter the host address and your wanted username. (Empty host will be localhost)')
 
         self.root.mainloop()
 

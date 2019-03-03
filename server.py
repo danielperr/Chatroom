@@ -138,7 +138,7 @@ def handle_connection(server_socket, client_socket, address):
     broadcast('[*] %s has joined the chat' % username)
 
     # We let the client process the message before sending another one straight away
-    time.sleep(0.01)
+    time.sleep(0.1)
     broadcast_online_users() # Update online users to everyone
 
 
