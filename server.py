@@ -4,9 +4,20 @@ from datetime import datetime
 
 BUFFER_SIZE = 1024
 HOST = 'localhost'
-USERNAME_WHITELIST = r'^[a-zA-Z\._-]*$'
+USERNAME_WHITELIST = r'^[a-zA-Z0-9\._-]*$'
 PASSWORD = 'sumsum_hipatah'
 HELP = '/time, /msg, /rolladice, /shutdown. More info in README.txt'
+
+QUOTES = [
+    "If you're too open-minded; your brains will fall out.",
+    "If you think nobody cares about you, try missing a couple of payments.",
+    "Rice is great when you're hungry and you want 2000 of something.",
+    "Life is short. Smile while you still have teeth.",
+    "When nothing is going right, go left.",
+    "If we're not meant to have midnight snacks, why is there a light in the fridge?",
+    "My fake plants died because I did not pretend to water them.",
+    "Do Wisozki employees take coffee breaks?"
+]
 
 
 port = 0
@@ -30,6 +41,9 @@ def find_free_port():
     return port
 
 def wait_for_port_request():
+    '''
+    Waits (sniffs) for port request ICMP message.
+    '''
     while True:
         if is_shutting_down:
             break
@@ -84,17 +98,16 @@ def broadcast_online_users():
     # usernames are seperated with space
 
 def broadcast(msg):
+    '''
+    Sends everyone in the users dictionary a message.
+    '''
     for address in users.keys():
         send_to_address(address, msg)
 
-def close_all_client_sockets():
-    '''
-    Closes all client sockets in 'users' dictionary
-    '''
-    for addr in users.keys():
-        users[addr][0].close()
-
 def handle_connection(server_socket, client_socket, address):
+    '''
+    Handles a client_socket ongoing connection (as a thread)
+    '''
     global sockets, users, is_shutting_down
 
     # Username validation with the client
@@ -152,6 +165,9 @@ def handle_connection(server_socket, client_socket, address):
             elif data.startswith('/rolladice'): # rolls a dice and announces it to everyone
                 broadcast('[*] %s has rolled a dice and it\'s a %s!' % (username, random.randint(1, 6)))
             
+            elif data.startswith('/quote'): # announces a random quote.
+                broadcast('[*] %s quotes: "%s"' % (username, random.choice(QUOTES)))
+
             elif data.startswith('/shutdown'): # shuts the server down if the password is correct
                 if len(data.split()) == 1:
                     client_socket.send('[x] ERROR: please provide a password too')
@@ -191,6 +207,9 @@ def handle_connection(server_socket, client_socket, address):
     client_socket.close()
 
 def main():
+    '''
+    Set up of the server
+    '''
     global port
 
     port = find_free_port()
