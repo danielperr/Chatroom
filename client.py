@@ -1,3 +1,10 @@
+'''
+client.py
+Chatroom using Tkinter, sockets, and scapy
+Author: Daniel Peretz
+'''
+
+
 try:
     from Tkinter import *
 except ImportError:
@@ -53,6 +60,8 @@ class App:
         self.display_message('Please enter the host address and your wanted username.')
 
         self.root.mainloop()
+
+    # <gui>
 
     def gui_setup_login(self):
         '''
@@ -209,6 +218,10 @@ class App:
         if autoscroll:
             self.chat_list.yview_moveto(1.0)
 
+    # </gui>
+
+    # <network>
+
     def login(self, event):
         '''
         Performs login actions, including requesting port,
@@ -334,7 +347,7 @@ class App:
         if self.locked_chat:
             return
 
-        msg = self.submit_entry.get()
+        msg = self.submit_entry.get().strip()
         if not msg: return
 
         self.submit_entry.delete(0, END)
@@ -358,5 +371,6 @@ class App:
         self.lock_chat()
         self.unlock_login()
 
+    # </network>
 
 app = App()

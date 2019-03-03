@@ -1,14 +1,21 @@
-import socket as s 
+'''
+server.py
+Chatroom using Tkinter, sockets, and scapy
+Author: Daniel Peretz
+'''
+
+
+import socket as s
 import threading, thread, re, time, scapy.all, random
 from datetime import datetime
 
-BUFFER_SIZE = 1024
-HOST = 'localhost'
-USERNAME_WHITELIST = r'^[a-zA-Z0-9\._-]*$'
-PASSWORD = 'sumsum_hipatah'
-HELP = '/time, /msg, /rolladice, /shutdown. More info in README.txt'
+BUFFER_SIZE = 1024 # Socket buffer size
+HOST = 'localhost' # Socket ip address
+USERNAME_WHITELIST = r'^[a-zA-Z0-9\._-]*$' # How the server filters usernames
+PASSWORD = 'sumsum_hipatah' # Password for server shutdown
+HELP = 'Available commands: /time, /msg, /rolladice, /quote, /shutdown. More info in README.txt' # Help info
 
-QUOTES = [
+QUOTES = [ # Intelligent quotes to be used by the /quote command
     "If you're too open-minded; your brains will fall out.",
     "If you think nobody cares about you, try missing a couple of payments.",
     "Rice is great when you're hungry and you want 2000 of something.",
@@ -16,7 +23,9 @@ QUOTES = [
     "When nothing is going right, go left.",
     "If we're not meant to have midnight snacks, why is there a light in the fridge?",
     "My fake plants died because I did not pretend to water them.",
-    "Do Wisozki employees take coffee breaks?"
+    "Do Wisozki employees take coffee breaks?",
+    "If a book about failures doesn't sell, is it a success?",
+    "Always go to other people's funerals, otherwise they won't come to yours."
 ]
 
 
@@ -52,7 +61,7 @@ def wait_for_port_request():
             filter = 'icmp',
             count = 1,
             lfilter = lambda p: 'chat-request-port' in str(p), # searching for raw data in packet
-            timeout = 1
+            timeout = 1 # Using a timeout so it can check for shutdown and not block the thread
         )
 
         if len(requests) == 0:
@@ -90,13 +99,6 @@ def send_to_address(address, msg):
         if e[0] == 10054: # connection was forcibly closed
             del users[address]
 
-def broadcast_online_users():
-    '''
-    Sends to everyone updates of the online user count.
-    '''
-    broadcast('/online ' + ' '.join(users[addr][1] for addr in users.keys()))
-    # usernames are seperated with space
-
 def broadcast(msg):
     '''
     Sends everyone in the users dictionary a message.
@@ -104,9 +106,16 @@ def broadcast(msg):
     for address in users.keys():
         send_to_address(address, msg)
 
+def broadcast_online_users():
+    '''
+    Sends to everyone an update of the online user count.
+    '''
+    broadcast('/online ' + ' '.join(users[addr][1] for addr in users.keys()))
+    # usernames are seperated with space
+
 def handle_connection(server_socket, client_socket, address):
     '''
-    Handles a client_socket ongoing connection (as a thread)
+    Handles a client_socket connection (as a thread)
     '''
     global sockets, users, is_shutting_down
 
@@ -116,7 +125,7 @@ def handle_connection(server_socket, client_socket, address):
         client_socket.send('[x] ERROR: username already taken!')
         client_socket.close()
         return
-    elif not re.match(USERNAME_WHITELIST, username):
+    elif not re.match(USERNAME_WHITELIST, username): # Check whitelist validity
         client_socket.send('[x] ERROR: username not valid - use characters, dot, underscore and dash')
         client_socket.close()
         return
@@ -127,10 +136,10 @@ def handle_connection(server_socket, client_socket, address):
 
     print '[*] %s has joined the chat' % username
     broadcast('[*] %s has joined the chat' % username)
+
+    # We let the client process the message before sending another one straight away
     time.sleep(0.01)
-    broadcast_online_users()
-
-
+    broadcast_online_users() # Update online users to everyone
 
 
     # Message handling
@@ -153,7 +162,7 @@ def handle_connection(server_socket, client_socket, address):
 
             elif data.startswith('/msg'): # sends a private message to the given username
                 try:
-                    msg = '[*] %s sent you : %s' % (username, ' '.join(data.split()[2:]))
+                    msg = '[*] [%s] %s sent you : %s' % (datetime.now().strftime("%H:%M:%S"), username, ' '.join(data.split()[2:]))
                     send_to_username(data.split()[1], msg)
                 except ValueError, e:
                     client_socket.send('[x] ERROR: ' + str(e))
@@ -163,10 +172,10 @@ def handle_connection(server_socket, client_socket, address):
                     client_socket.send('[*] You sent %s : %s' % (data.split()[1], ' '.join(data.split()[2:])))
             
             elif data.startswith('/rolladice'): # rolls a dice and announces it to everyone
-                broadcast('[*] %s has rolled a dice and it\'s a %s!' % (username, random.randint(1, 6)))
+                broadcast('[*] [%s] %s has rolled a dice and it\'s a %s!' % (datetime.now().strftime("%H:%M:%S"), username, random.randint(1, 6)))
             
             elif data.startswith('/quote'): # announces a random quote.
-                broadcast('[*] %s quotes: "%s"' % (username, random.choice(QUOTES)))
+                broadcast('[*] [%s] %s quotes: "%s"' % (datetime.now().strftime("%H:%M:%S"), username, random.choice(QUOTES)))
 
             elif data.startswith('/shutdown'): # shuts the server down if the password is correct
                 if len(data.split()) == 1:
@@ -180,6 +189,7 @@ def handle_connection(server_socket, client_socket, address):
                     is_shutting_down = True
 
                     # Opening a temporary socket to free the .accept method in main()
+                    # (accept() waits for a new connection and blocks the program from terminating)
                     closing_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
                     closing_socket.connect((HOST, port))
                     closing_socket.close()
@@ -188,12 +198,16 @@ def handle_connection(server_socket, client_socket, address):
                 else:
                     client_socket.send('[x] Wrong password')
             
+            elif data.startswith('/help'): # Displays help information
+                client_socket.send('[*] ' + HELP)
+
             else:
-                client_socket.send('[x] Unknown command. Available commands: ' + HELP)
+                client_socket.send('[x] Unknown command. ' + HELP)
             
         else:
             # If not a command, broadcasts the data as a chat message
             broadcast('[%s] [%s] > %s' % (datetime.now().strftime("%H:%M:%S"), users[address][1], data))
+
 
     # Outside loop
     print '[*] %s has left the chat' % username
