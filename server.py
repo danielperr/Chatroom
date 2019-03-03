@@ -13,7 +13,7 @@ BUFFER_SIZE = 1024 # Socket buffer size
 HOST = 'localhost' # Socket ip address
 USERNAME_WHITELIST = r'^[a-zA-Z0-9\._-]*$' # How the server filters usernames
 PASSWORD = 'sumsum_hipatah' # Password for server shutdown
-HELP = 'Available commands: /time, /msg, /rolladice, /quote, /shutdown. More info in README.txt' # Help info
+HELP = 'Available commands: /time, /msg, /rolladice, /quote, /logout, /shutdown. More info in README.txt' # Help info
 
 QUOTES = [ # Intelligent quotes to be used by the /quote command
     "If you're too open-minded; your brains will fall out.",
@@ -176,6 +176,10 @@ def handle_connection(server_socket, client_socket, address):
             
             elif data.startswith('/quote'): # announces a random quote.
                 broadcast('[*] [%s] %s quotes: "%s"' % (datetime.now().strftime("%H:%M:%S"), username, random.choice(QUOTES)))
+            
+            elif data.startswith('/logout'): # user log out
+                client_socket.send('/off')
+                break
 
             elif data.startswith('/shutdown'): # shuts the server down if the password is correct
                 if len(data.split()) == 1:
@@ -185,7 +189,6 @@ def handle_connection(server_socket, client_socket, address):
                     client_socket.send('[*] Shutting down . . .')
                     time.sleep(0.01)
                     broadcast('/off')
-                    server_socket.close()
                     is_shutting_down = True
 
                     # Opening a temporary socket to free the .accept method in main()
@@ -242,7 +245,11 @@ def main():
         
         thread.start_new_thread(handle_connection, (server_socket, client_socket, address))
     
+    server_socket.close()
+    
     quit()
+    # When exiting it will announce that sys.excepthook and sys.stderr are missing
+    # however, it is a known issue
 
 if __name__ == '__main__':
     main()
