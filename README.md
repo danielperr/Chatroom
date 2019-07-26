@@ -3,6 +3,12 @@ Chat room with GUI using python tkinter, scapy, and sockets
 
 Author: Daniel Peretz
 
+## Features
+* a live chat room
+* everyone gets to choose a unique username
+* see who's connected to the room at any time
+* fun commands to play with
+
 ## Commands
 * /time - Returns server time
 * /rolladice - Rolls a dice and announces the result to everyone
