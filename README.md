@@ -1,5 +1,5 @@
-# targil6
-Targil 6 sockets - Chat Room
+# Chat Room
+Chat room with GUI using python tkinter, scapy, and sockets
 
 Author: Daniel Peretz
 
